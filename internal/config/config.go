@@ -207,7 +207,7 @@ func (c *Config) finish() error {
 	if c.LLM.Provider == "" {
 		c.LLM.Provider = nl.DefaultProviderName
 	}
-	if err := nl.ValidateProvider(c.LLM.Provider); err != nil {
+	if err := nl.SetConfiguredProvider(c.LLM.Provider); err != nil {
 		return err
 	}
 
@@ -227,7 +227,6 @@ func (c *Config) finish() error {
 					resolvedKey = v
 					break
 				}
-			}
 		}
 	}
 	if resolvedKey == "" && c.LLM.Provider == nl.DefaultProviderName {
