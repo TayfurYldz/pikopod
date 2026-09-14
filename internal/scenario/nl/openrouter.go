@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -75,20 +76,30 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-// NewClient preserves the historical OpenRouter constructor.
+// NewClient preserves the historical constructor while using the provider
+// selected by configuration. Without a loaded config it defaults to OpenRouter.
 func NewClient(apiKey, model string) *Client {
-	return NewClientForProvider(DefaultProviderName, apiKey, model)
+	return NewClientForProvider(configuredProviderName(), apiKey, model)
 }
 
 // NewClientForProvider builds a client over a registered provider. Invalid
 // names are retained as a provider error so callers keep the historical
 // no-error constructor shape; normal config loading rejects them earlier.
 func NewClientForProvider(name, apiKey, model string) *Client {
-	p, err := NewProvider(name, ProviderOptions{APIKey: apiKey, Model: model})
+	resolvedName := normalizeProviderName(name)
+	p, err := NewProvider(resolvedName, ProviderOptions{APIKey: apiKey, Model: model})
 	if err != nil {
 		return &Client{provider: &errorProvider{err: err}, APIKey: apiKey, Model: model}
 	}
-	return NewClientWithProvider(p)
+	c := NewClientWithProvider(p)
+	if base := os.Getenv("PIKOPOD_LLM_BASE"); base != "" {
+		c.BaseURL = base
+	} else if resolvedName == DefaultProviderName {
+		if base := os.Getenv("PIKOPOD_OPENROUTER_BASE"); base != "" {
+			c.BaseURL = base
+		}
+	}
+	return c
 }
 
 // NewClientWithProvider is the no-network seam used by tests and future
